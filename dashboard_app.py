@@ -20,8 +20,6 @@ st.markdown("""
   [data-testid="stMarkdownContainer"] * { color: #000000 !important; }
   /* Tables center aligned */
   .stTable td, .stTable th {
-    color: #000000 !important;
-    background-color: #FFFFFF !important;
     text-align: center !important;
   }
 </style>
@@ -99,8 +97,8 @@ for grp, gdf in df.groupby('GroupName'):
             'Min': arr.min(),
             'Max': arr.max(),
             'Range': arr.max() - arr.min(),
-            'Best Metro': gdf.loc[arr.idxmax(),'CBSA Title'],
-            'Worst Metro': gdf.loc[arr.idxmin(),'CBSA Title']
+            'Best Metro': gdf.loc[arr.idxmax(), 'CBSA Title'],
+            'Worst Metro': gdf.loc[arr.idxmin(), 'CBSA Title']
         }
         if m in adoption_metrics:
             rec['Sum'] = arr.sum()
@@ -116,6 +114,7 @@ if mode == "Group Overviews":
     st.sidebar.header("Overview Filter")
     pillar = st.sidebar.selectbox("Pillar", ["All","Talent","Innovation","Adoption"])
     grp = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
+
     if pillar == "Talent":
         mets = [m for m in talent_metrics if m in summary_df['Metric'].unique()]
     elif pillar == "Innovation":
@@ -123,7 +122,7 @@ if mode == "Group Overviews":
     elif pillar == "Adoption":
         mets = [m for m in adoption_metrics if m in summary_df['Metric'].unique()]
     else:
-        mets = summary_df[summary_df['Group']==grp]['Metric'].unique().tolist()
+        mets = summary_df[summary_df['Group'] == grp]['Metric'].unique().tolist()
     m = st.sidebar.selectbox("Metric", mets)
 
     # header + definition
@@ -133,9 +132,9 @@ if mode == "Group Overviews":
         unsafe_allow_html=True
     )
 
-    # stats cards (no Range)
-    cnt = df[df['GroupName']==grp].shape[0]
-    row = summary_df[(summary_df['Group']==grp) & (summary_df['Metric']==m)].iloc[0]
+    # stats cards (Count, Mean, Min, Max)
+    cnt = df[df['GroupName'] == grp].shape[0]
+    row = summary_df[(summary_df['Group'] == grp) & (summary_df['Metric'] == m)].iloc[0]
     cols = st.columns(4)
     stats = [
         ('Count', cnt),
@@ -145,34 +144,79 @@ if mode == "Group Overviews":
     ]
     for box, (lbl, val) in zip(cols, stats):
         box.markdown(
-            f"<div style='background-color:{group_colors[grp]};"
-            f"padding:10px;border-radius:8px;'>"
+            f"<div style='background-color:{group_colors[grp]}; padding:10px; border-radius:8px;'>"
             f"<h4 style='color:white;margin:0'>{lbl}</h4>"
             f"<p style='color:white;font-size:20px;margin:0'>{val:.2f}</p>"
-            "</div>",
+            f"</div>",
             unsafe_allow_html=True
         )
 
-    # sum/share only for non-per-capita adoption metrics
+    # Sum/Share for non-per-capita adoption metrics
     if m in adoption_metrics and m not in per_capita_metrics:
         c5, c6 = st.columns(2)
         c5.metric("Sum", f"{row['Sum']:.0f}")
         c6.metric("Share (%)", f"{row['Share (%)']:.1f}%")
 
+    # Top/Bottom metros
     st.markdown("### Top Metros")
-    top = df[df['GroupName']==grp][['CBSA Title', m]].nlargest(5, m)
+    top = df[df['GroupName'] == grp][['CBSA Title', m]].nlargest(5, m)
     for i, (mt, vl) in enumerate(zip(top['CBSA Title'], top[m]), 1):
         st.markdown(f"{i}. {mt} — {vl:.2f}")
 
     st.markdown("### Bottom Metros")
-    bot = df[df['GroupName']==grp][['CBSA Title', m]].nsmallest(5, m)
+    bot = df[df['GroupName'] == grp][['CBSA Title', m]].nsmallest(5, m)
     for i, (mt, vl) in enumerate(zip(bot['CBSA Title'], bot[m]), 1):
         st.markdown(f"{i}. {mt} — {vl:.2f}")
 
+    # Strength & Weakness Profile
     st.markdown("### Strength & Weakness Profile")
-    comb = df[df['GroupName']==grp]['Combination'].value_counts()
+    comb = df[df['GroupName'] == grp]['Combination'].value_counts()
     pct = (comb / comb.sum() * 100).round(1)
     profile_df = pd.DataFrame({'Count': comb, 'Share (%)': pct})
-    st.table(
-        profile_df.style.set_table_styles([
-            {'selector': '
+    st.table(profile_df)
+
+# ─── Group Comparison ─────────────────────────────────────────────────────────
+elif mode == "Group Comparison":
+    st.header("Group Comparison")
+    st.markdown("Select clusters to view combined averages or shares for each adoption metric.")
+    cols = st.columns(3)
+    sel = [grp for i, grp in enumerate(group_colors) if cols[i % 3].checkbox(grp)]
+    if not sel:
+        st.warning("Select at least one cluster.")
+    else:
+        rows = []
+        for m in adoption_metrics:
+            if m in per_capita_metrics:
+                avg = summary_df[(summary_df['Group'].isin(sel)) & (summary_df['Metric'] == m)]['Mean'].mean()
+                rows.append({'Metric': m, 'Average': avg})
+            else:
+                total_sel = summary_df[(summary_df['Group'].isin(sel)) & (summary_df['Metric'] == m)]['Sum'].sum()
+                pct = total_sel / totals[m] * 100 if totals[m] else np.nan
+                rows.append({'Metric': m, 'Share (%)': pct})
+        comp_df = pd.DataFrame(rows).set_index('Metric')
+        st.table(comp_df)
+
+# ─── Metro Search ─────────────────────────────────────────────────────────────
+else:
+    st.header("Metro Search")
+    st.sidebar.header("Search Filter")
+    grp_ms = st.sidebar.selectbox("Cluster Group", sorted(df['GroupName'].unique()))
+    metro = st.sidebar.selectbox("Metro", df[df['GroupName'] == grp_ms]['CBSA Title'].sort_values())
+    st.markdown(f"## {metro} — {grp_ms}")
+    r = df[df['CBSA Title'] == metro].iloc[0]
+    rows = []
+    for m in all_metrics:
+        if m in adoption_metrics:
+            if m in per_capita_metrics:
+                rows.append({'Metric': m, 'Average': r[m]})
+            else:
+                share = r[m] / totals[m] * 100 if totals[m] else np.nan
+                rows.append({'Metric': m, 'Share (%)': share})
+        else:
+            rows.append({'Metric': m, 'Value': r[m]})
+    metro_df = pd.DataFrame(rows).set_index('Metric')
+    st.table(metro_df.style.format({
+        'Value': '{:.2f}',
+        'Average': '{:.2f}',
+        'Share (%)': '{:.1f}%'
+    }))
