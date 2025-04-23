@@ -58,10 +58,15 @@ adoption_metrics = [
 all_metrics = talent_metrics + innovation_metrics + adoption_metrics
 
 # ─── Load & prepare data ───────────────────────────────────────────────────────
-df_raw = pd.read_csv('SHRIYA_updated raw data_v4_clusters.csv', encoding='latin1')
-df_chk = pd.read_excel('cluster_groupings.xlsx', sheet_name=0)
-df = pd.merge(df_raw, df_chk[['Code','Combination','Group']],
-              left_on='CBSA Code', right_on='Code', how='left')
+df = pd.read_csv('SHRIYA_updated raw data_v4_clusters.csv', encoding='latin1')
+cluster_info = pd.read_excel('cluster_groupings.xlsx', sheet_name=0)
+
+# merge on CBSA Code → Code
+df = df.merge(
+    cluster_info[['Code','Combination','Group']],
+    left_on='CBSA Code', right_on='Code',
+    how='left'
+)
 df['Group2']    = df['Group'].fillna(0).astype(int)
 names = {
     1:'AI Superstars',2:'Star AI Hubs',3:'Emerging AI Centers',
@@ -69,27 +74,33 @@ names = {
 }
 df['GroupName'] = df['Group2'].map(names)
 
+# convert metrics to numeric
 for c in all_metrics:
     df[c] = pd.to_numeric(df[c], errors='coerce')
-totals = {m: df[m].sum(skipna=True) for m in innovation_metrics + adoption_metrics + talent_metrics}
+
+# precompute totals for shares
+totals = {m: df[m].sum(skipna=True) for m in adoption_metrics}
 
 # ─── Build summary_df ─────────────────────────────────────────────────────────
 records = []
 for grp, gdf in df.groupby('GroupName'):
     for m in all_metrics:
         arr = gdf[m].dropna()
-        if arr.empty: continue
+        if arr.empty:
+            continue
         rec = {
-            'Group': grp, 'Metric': m,
-            'Mean': arr.mean(), 'Min': arr.min(),
-            'Max': arr.max(), 'Range': arr.max()-arr.min(),
+            'Group': grp,
+            'Metric': m,
+            'Mean': arr.mean(),
+            'Min':  arr.min(),
+            'Max':  arr.max(),
+            'Range': arr.max() - arr.min(),
             'Best Metro': gdf.loc[arr.idxmax(),'CBSA Title'],
-            'Worst Metro': gdf.loc[arr.idxmin(),'CBSA Title']
+            'Worst Metro':gdf.loc[arr.idxmin(),'CBSA Title']
         }
-        # only share metrics for adoption and talent/innovation? user said only share for adoption.
         if m in adoption_metrics:
-            rec['Sum'] = arr.sum()
-            rec['Share (%)'] = rec['Sum']/totals[m]*100 if totals[m] else np.nan
+            rec['Sum']       = arr.sum()
+            rec['Share (%)'] = rec['Sum'] / totals[m] * 100 if totals[m] else np.nan
         records.append(rec)
 summary_df = pd.DataFrame(records)
 
@@ -99,10 +110,8 @@ mode = st.sidebar.radio("View", ["Group Overviews","Group Comparison","Metro Sea
 # ─── Group Overviews ──────────────────────────────────────────────────────────
 if mode == "Group Overviews":
     st.sidebar.header("Overview Filter")
-    # pillar filter
     pillar = st.sidebar.selectbox("Pillar", ["All","Talent","Innovation","Adoption"])
     grp = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
-    # metric list filtered by pillar
     if pillar == "Talent":
         mets = [m for m in talent_metrics if m in summary_df['Metric'].unique()]
     elif pillar == "Innovation":
@@ -120,7 +129,7 @@ if mode == "Group Overviews":
         unsafe_allow_html=True
     )
 
-    # count, mean, min, max, range
+    # stats cards
     cnt = df[df['GroupName']==grp].shape[0]
     row = summary_df[(summary_df['Group']==grp)&(summary_df['Metric']==m)].iloc[0]
     cols = st.columns(5)
@@ -134,16 +143,16 @@ if mode == "Group Overviews":
             f"<div style='background-color:{group_colors[grp]};"
             f"padding:10px;border-radius:8px;'>"
             f"<h4 style='color:white;margin:0'>{lbl}</h4>"
-            f"<p style='color:white;font-size:20px;margin:0'>{val:.2f}</p></div>",
+            f"<p style='color:white;font-size:20px;margin:0'>{val:.2f}</p>"
+            "</div>",
             unsafe_allow_html=True
         )
-    # sum & share if adoption
+
     if m in adoption_metrics:
         c5,c6 = st.columns(2)
         c5.metric("Sum",f"{row['Sum']:.0f}")
         c6.metric("Share (%)",f"{row['Share (%)']:.1f}%")
 
-    # Top / Bottom metros in black text
     st.markdown("### Top Metros")
     top = df[df['GroupName']==grp][['CBSA Title',m]].nlargest(5,m)
     for i,(mt,vl) in enumerate(zip(top['CBSA Title'],top[m]),1):
@@ -154,7 +163,6 @@ if mode == "Group Overviews":
     for i,(mt,vl) in enumerate(zip(bot['CBSA Title'],bot[m]),1):
         st.markdown(f"<span style='color:#000000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
 
-    # strength & weakness
     st.markdown("### Strength & Weakness Profile")
     comb = df[df['GroupName']==grp]['Combination'].value_counts()
     pct  = (comb/comb.sum()*100).round(1)
