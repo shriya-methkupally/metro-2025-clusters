@@ -239,7 +239,7 @@ else:
     st.header("Metro Search")
     st.sidebar.header("Search Filter")
 
-    # --- Cluster & Metro selectors ---
+    # Cluster & Metro selectors
     grp_ms = st.sidebar.selectbox(
         "Cluster Group",
         sorted(df['GroupName'].unique())
@@ -248,20 +248,16 @@ else:
         "Metro",
         df[df['GroupName'] == grp_ms]['CBSA Title'].sort_values()
     )
-
     st.markdown(f"## {metro} — {grp_ms}")
 
-    # --- Fetch the metro’s data row ---
+    # Fetch the metro’s data row
     r = df[df['CBSA Title'] == metro].iloc[0]
 
-    # --- Build rows: always Value; Share (%) for non–per-capita metrics ---
+    # Build rows: Value + Share(%) for non–per-capita metrics
     rows = []
     for m in all_metrics:
         val = r[m]
-        row = {
-            'Metric': m,
-            'Value': f"{val:.2f}"
-        }
+        row = {'Metric': m, 'Value': f"{val:.2f}"}
         if m not in per_capita_metrics:
             total = totals.get(m, 0)
             pct = (val / total * 100) if total else np.nan
@@ -269,24 +265,5 @@ else:
         rows.append(row)
 
     metro_df = pd.DataFrame(rows).set_index('Metric')
-
-    # --- Styling to match Group Comparison ---
-    styled = metro_df.style.set_table_styles([
-        {
-            'selector': 'thead th',
-            'props': [
-                ('background-color', '#003a70'),
-                ('color',            'white'),
-                ('text-align',       'center'),
-                ('font-weight',      'bold'),
-            ]
-        },
-        {
-            'selector': 'tbody td',
-            'props': [
-                ('text-align', 'center'),
-            ]
-        }
-    ])
 
     st.table(styled)
