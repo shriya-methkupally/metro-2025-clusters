@@ -241,42 +241,38 @@ elif mode == "Group Comparison":
 else:
     st.header("Metro Search")
     st.sidebar.header("Search Filter")
-    # select group & metro
-    grp_ms = st.sidebar.selectbox("Cluster Group", sorted(df['GroupName'].unique()))
-    metro  = st.sidebar.selectbox(
-        "Metro",
-        df[df['GroupName']==grp_ms]['CBSA Title'].sort_values()
+
+    # --- selectors ---
+    grp_ms = st.sidebar.selectbox(
+        "Cluster Group", sorted(df['GroupName'].unique())
+    )
+    metro = st.sidebar.selectbox(
+        "Metro", df[df['GroupName']==grp_ms]['CBSA Title'].sort_values()
     )
     st.markdown(f"## {metro} — {grp_ms}")
 
-    # fetch the row for this metro
+    # --- grab the metro row ---
     r = df[df['CBSA Title']==metro].iloc[0]
 
-    # build the table rows
+    # --- build rows: always show Value; show Share(%) only for non-per-capita metrics ---
     rows = []
     for m in all_metrics:
         val = r[m]
-        row = {'Metric': m, 'Value': f"{val:.2f}"}
-
-        if m in per_capita_metrics:
-            # show the group-average for per-capita metrics
-            avg = summary_df[
-                (summary_df['Group']==grp_ms) &
-                (summary_df['Metric']==m)
-            ]['Mean'].iloc[0]
-            row['Average'] = f"{avg:.2f}"
-        else:
-            # show share (%) for all other metrics
+        row = {
+            'Metric': m,
+            'Value': f"{val:.2f}"
+        }
+        if m not in per_capita_metrics:
             total = totals.get(m, 0)
-            pct = val / total * 100 if total else np.nan
+            pct = (val / total * 100) if total else np.nan
             row['Share (%)'] = f"{pct:.1f}%"
-
         rows.append(row)
 
     metro_df = pd.DataFrame(rows).set_index('Metric')
 
-    # apply same styling as in Group Comparison
+    # --- styling to match Group Comparison ---
     styled = metro_df.style.set_table_styles([
+        # header
         {
             'selector': 'thead th',
             'props': [
@@ -286,6 +282,7 @@ else:
                 ('font-weight',      'bold'),
             ]
         },
+        # body
         {
             'selector': 'tbody td',
             'props': [
