@@ -2,14 +2,23 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# ─── Page config & CSS ─────────────────────────────────────────────────────────
+# ─── Page config & updated CSS ─────────────────────────────────────────────────
 st.set_page_config(page_title="AI Metro Dashboard", layout="wide", page_icon="🤖")
 st.markdown("""
 <style>
-  /* App background */
-  .stApp { background-color: #F2F3F4 !important; }
-  /* Sidebar */
-  [data-testid="stSidebar"] { background-color: #FFFFFF !important; }
+  /* Ensure entire app uses black text on light grey background */
+  .stApp {
+    background-color: #F2F3F4 !important;
+    color: #000000 !important;
+  }
+  .stApp * {
+    color: #000000 !important;
+  }
+  /* Sidebar specific */
+  [data-testid="stSidebar"] {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+  }
   /* Center-align all tables and enforce black text */
   .stTable, .stTable td, .stTable th {
     margin-left: auto !important;
@@ -60,11 +69,9 @@ name_map        = {
 }
 df['GroupName'] = df['Group2'].map(name_map)
 
-# convert metrics to numeric
 for c in all_metrics:
     df[c] = pd.to_numeric(df[c], errors='coerce')
 
-# precompute totals for share metrics (count only)
 count_metrics = adoption_metrics[:3]
 totals        = {m: df[m].sum(skipna=True) for m in count_metrics}
 
@@ -99,24 +106,19 @@ if mode == "Group Overviews":
     st.sidebar.header("Overview Filter")
     pillar = st.sidebar.selectbox("Pillar", ["All","Talent","Innovation","Adoption"])
     grp    = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
-    if pillar == "Talent":
+    if pillar=="Talent":
         mets = [m for m in talent_metrics if m in summary_df['Metric'].unique()]
-    elif pillar == "Innovation":
+    elif pillar=="Innovation":
         mets = [m for m in innovation_metrics if m in summary_df['Metric'].unique()]
-    elif pillar == "Adoption":
+    elif pillar=="Adoption":
         mets = [m for m in adoption_metrics if m in summary_df['Metric'].unique()]
     else:
         mets = summary_df[summary_df['Group']==grp]['Metric'].unique().tolist()
     m = st.sidebar.selectbox("Metric", mets)
 
-    # header + definition
-    st.markdown(
-        f"<h1 style='color:{group_colors[grp]};'>{m} — {grp}</h1>"
-        f"<p><em>{group_defs[grp]}</em></p>",
-        unsafe_allow_html=True
-    )
+    st.markdown(f"<h1 style='color:{group_colors[grp]};'>{m} — {grp}</h1>", unsafe_allow_html=True)
+    st.markdown(f"*{group_defs[grp]}*", unsafe_allow_html=True)
 
-    # stats cards
     cnt = df[df['GroupName']==grp].shape[0]
     row = summary_df[(summary_df['Group']==grp)&(summary_df['Metric']==m)].iloc[0]
     cols = st.columns(5)
@@ -186,7 +188,7 @@ else:
         val = r[m]
         pct = (val / totals[m] * 100) if m in count_metrics else np.nan
         if m in count_metrics:
-            rows.append({'Metric': m, 'Value': f"{val:.2f}", 'Share (%)': f"{pct:.2f}%"})
+            rows.append({'Metric': m, 'Value': f"{val:.2f}", 'Share (%)': f"{pct:.2f}%\"})
         else:
             rows.append({'Metric': m, 'Value': f"{val:.2f}"})
     metro_df = pd.DataFrame(rows).set_index('Metric').fillna('')
