@@ -6,16 +6,23 @@ import numpy as np
 st.set_page_config(page_title="AI Metro Dashboard", layout="wide", page_icon="🤖")
 st.markdown("""
 <style>
-  /* App background */
-  .stApp { background-color: #F2F3F4 !important; color: #000 !important; }
+  /* App background and default text color */
+  .stApp {
+    background-color: #F2F3F4 !important;
+    color: #000 !important;
+  }
   /* Sidebar */
-  [data-testid="stSidebar"] { background-color: #FFFFFF !important; color: #000 !important; }
+  [data-testid="stSidebar"] {
+    background-color: #FFFFFF !important;
+    color: #000 !important;
+  }
   /* Center‐align all tables and enforce black text */
   .stTable, .stTable td, .stTable th {
     margin-left: auto !important;
     margin-right: auto !important;
     color: #000 !important;
     background-color: #FFFFFF !important;
+    text-align: center !important;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -153,27 +160,20 @@ if mode == "Group Overviews":
 # ─── Group Comparison ─────────────────────────────────────────────────────────
 elif mode == "Group Comparison":
     st.header("Group Comparison")
-    st.markdown("Select clusters to compare metrics:")
+    st.markdown("Select clusters to view combined share (%) for each adoption metric.")
     cols = st.columns(3)
-    selected = [g for i,g in enumerate(group_colors) if cols[i%3].checkbox(g)]
-    if not selected:
+    sel = [grp for i,grp in enumerate(group_colors) if cols[i%3].checkbox(grp)]
+    if not sel:
         st.warning("Select at least one cluster.")
     else:
         rows = []
-        for m in all_metrics:
-            if m in count_metrics:
-                total_sel = summary_df[
-                    (summary_df['Group'].isin(selected)) &
-                    (summary_df['Metric']==m)
-                ]['Sum'].sum()
-                val  = total_sel / totals[m] * 100 if totals[m] else np.nan
-                disp = f"{val:,.2f}%"
-            else:
-                avg  = df[df['GroupName'].isin(selected)][m].mean()
-                disp = f"{avg:,.2f}"
-            rows.append({'Metric': m, 'Value': disp})
-        comp_df = pd.DataFrame(rows).set_index('Metric')
-        st.table(comp_df)
+        for m in adoption_metrics:
+            total_sel = summary_df[
+                (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
+            ]['Sum'].sum()
+            pct = total_sel / totals[m] * 100 if totals[m] else np.nan
+            rows.append({'Metric':m,'Share (%)':pct})
+        st.table(pd.DataFrame(rows).set_index('Metric'))
 
 # ─── Metro Search ─────────────────────────────────────────────────────────────
 else:
@@ -186,10 +186,7 @@ else:
     rows = []
     for m in all_metrics:
         val = r[m]
-        if m in count_metrics:
-            pct = val / totals[m] * 100 if totals[m] else np.nan
-            rows.append({'Metric': m, 'Value': f"{val:,.2f}", 'Share (%)': f"{pct:,.2f}%"})
-        else:
-            rows.append({'Metric': m, 'Value': f"{val:,.2f}"})
+        pct = (val / totals[m] * 100) if m in adoption_metrics and totals[m] else np.nan
+        rows.append({'Metric':m,'Value':f"{val:,.2f}",'Share (%)':f"{pct:,.2f}%"} if m in count_metrics else {'Metric':m,'Value':f"{val:,.2f}"})
     metro_df = pd.DataFrame(rows).set_index('Metric').fillna('')
     st.table(metro_df)
