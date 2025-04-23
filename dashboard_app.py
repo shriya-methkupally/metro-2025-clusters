@@ -11,17 +11,18 @@ st.markdown("""
     background-color: #F2F3F4 !important;
     color: #000 !important;
   }
-  /* Sidebar */
+  /* Sidebar background and text */
   [data-testid="stSidebar"] {
     background-color: #FFFFFF !important;
+  }
+  [data-testid="stSidebar"] label,
+  [data-testid="stSidebar"] .stRadio label,
+  [data-testid="stSidebar"] .stSelectbox label,
+  [data-testid="stSidebar"] .stCheckbox label {
     color: #000 !important;
   }
-  /* Center‐align all tables and enforce black text */
-  .stTable, .stTable td, .stTable th {
-    margin-left: auto !important;
-    margin-right: auto !important;
-    color: #000 !important;
-    background-color: #FFFFFF !important;
+  /* Center-align only table cell content */
+  .stTable td, .stTable th {
     text-align: center !important;
   }
 </style>
@@ -44,20 +45,29 @@ group_defs = {
 }
 
 # ─── Pillar metric mapping ─────────────────────────────────────────────────────
-talent_metrics     = ["Science and Engineering Bachelor's", 'Phd', 'Profiles']
-innovation_metrics = ['Publications','Patents','Contracts','HPC']
-adoption_metrics   = [
+talent_metrics = [
+    "Science and Engineering Bachelor's",
+    'Phd',
+    'Profiles'
+]
+innovation_metrics = [
+    'Publications','Patents','Contracts','HPC'
+]
+adoption_metrics = [
     'Job Postings','AI Startups','VC Funding',
     'Firm AI Use','Firm Data Readiness','Firm Cloud Readiness','Occupational Exposure to AI'
 ]
-all_metrics        = talent_metrics + innovation_metrics + adoption_metrics
+all_metrics = talent_metrics + innovation_metrics + adoption_metrics
 
 # ─── Load & prepare data ───────────────────────────────────────────────────────
 df = pd.read_csv('SHRIYA_updated raw data_v4_clusters.csv', encoding='latin1')
 cluster_info = pd.read_excel('cluster_groupings.xlsx', sheet_name=0)
+
+# merge on CBSA Code → Code
 df = df.merge(
     cluster_info[['Code','Combination','Group']],
-    left_on='CBSA Code', right_on='Code', how='left'
+    left_on='CBSA Code', right_on='Code',
+    how='left'
 )
 df['Group2']    = df['Group'].fillna(0).astype(int)
 names = {
@@ -66,33 +76,33 @@ names = {
 }
 df['GroupName'] = df['Group2'].map(names)
 
-# convert all metrics to numeric
+# convert metrics to numeric
 for c in all_metrics:
     df[c] = pd.to_numeric(df[c], errors='coerce')
 
-# precompute totals for count metrics
-count_metrics = adoption_metrics[:3]
-totals = {m: df[m].sum(skipna=True) for m in count_metrics}
+# precompute totals for shares
+totals = {m: df[m].sum(skipna=True) for m in adoption_metrics}
 
 # ─── Build summary_df ─────────────────────────────────────────────────────────
 records = []
 for grp, gdf in df.groupby('GroupName'):
     for m in all_metrics:
         arr = gdf[m].dropna()
-        if arr.empty: continue
+        if arr.empty:
+            continue
         rec = {
-            'Group':      grp,
-            'Metric':     m,
-            'Mean':       float(f"{arr.mean():.2f}"),
-            'Min':        float(f"{arr.min():.2f}"),
-            'Max':        float(f"{arr.max():.2f}"),
-            'Range':      float(f"{(arr.max()-arr.min()):.2f}"),
+            'Group': grp,
+            'Metric': m,
+            'Mean': arr.mean(),
+            'Min':  arr.min(),
+            'Max':  arr.max(),
+            'Range': arr.max() - arr.min(),
             'Best Metro': gdf.loc[arr.idxmax(),'CBSA Title'],
             'Worst Metro':gdf.loc[arr.idxmin(),'CBSA Title']
         }
-        if m in count_metrics:
-            rec['Sum']       = float(f"{arr.sum():.2f}")
-            rec['Share (%)'] = float(f"{(arr.sum()/totals[m]*100) if totals[m] else np.nan:.2f}")
+        if m in adoption_metrics:
+            rec['Sum']       = arr.sum()
+            rec['Share (%)'] = rec['Sum'] / totals[m] * 100 if totals[m] else np.nan
         records.append(rec)
 summary_df = pd.DataFrame(records)
 
@@ -103,8 +113,7 @@ mode = st.sidebar.radio("View", ["Group Overviews","Group Comparison","Metro Sea
 if mode == "Group Overviews":
     st.sidebar.header("Overview Filter")
     pillar = st.sidebar.selectbox("Pillar", ["All","Talent","Innovation","Adoption"])
-    grp    = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
-
+    grp = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
     if pillar == "Talent":
         mets = [m for m in talent_metrics if m in summary_df['Metric'].unique()]
     elif pillar == "Innovation":
@@ -115,47 +124,51 @@ if mode == "Group Overviews":
         mets = summary_df[summary_df['Group']==grp]['Metric'].unique().tolist()
     m = st.sidebar.selectbox("Metric", mets)
 
-    # Header & definition
+    # header + definition
     st.markdown(
         f"<h1 style='color:{group_colors[grp]};'>{m} — {grp}</h1>"
         f"<p><em>{group_defs[grp]}</em></p>",
         unsafe_allow_html=True
     )
 
-    # Stats cards
+    # stats cards
     cnt = df[df['GroupName']==grp].shape[0]
     row = summary_df[(summary_df['Group']==grp)&(summary_df['Metric']==m)].iloc[0]
     cols = st.columns(5)
     stats = [
-        ('Count', cnt),
-        ('Mean',  row['Mean']),
-        ('Min',   row['Min']),
-        ('Max',   row['Max']),
-        ('Range', row['Range'])
+        ('Count',cnt),
+        ('Mean',row['Mean']),('Min',row['Min']),
+        ('Max',row['Max']),('Range',row['Range'])
     ]
-    for box,(lbl,val) in zip(cols, stats):
-        box.metric(lbl, f"{val:,.2f}")
+    for box,(lbl,val) in zip(cols,stats):
+        box.markdown(
+            f"<div style='background-color:{group_colors[grp]};"
+            f"padding:10px;border-radius:8px;'>"
+            f"<h4 style='color:white;margin:0'>{lbl}</h4>"
+            f"<p style='color:white;font-size:20px;margin:0'>{val:.2f}</p>"
+            "</div>",
+            unsafe_allow_html=True
+        )
 
-    if m in count_metrics:
-        st.metric("Sum",       f"{row['Sum']:,.2f}")
-        st.metric("Share (%)", f"{row['Share (%)']:,.2f}%")
+    if m in adoption_metrics:
+        c5,c6 = st.columns(2)
+        c5.metric("Sum",f"{row['Sum']:.0f}")
+        c6.metric("Share (%)",f"{row['Share (%)']:.1f}%")
 
-    # Top/Bottom Metros
     st.markdown("### Top Metros")
-    top = df[df['GroupName']==grp][['CBSA Title', m]].nlargest(5, m)
-    for i,(mt,vl) in enumerate(zip(top['CBSA Title'], top[m]), 1):
-        st.write(f"{i}. {mt} — {vl:,.2f}")
+    top = df[df['GroupName']==grp][['CBSA Title',m]].nlargest(5,m)
+    for i,(mt,vl) in enumerate(zip(top['CBSA Title'],top[m]),1):
+        st.markdown(f"<span style='color:#000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
 
     st.markdown("### Bottom Metros")
-    bot = df[df['GroupName']==grp][['CBSA Title', m]].nsmallest(5, m)
-    for i,(mt,vl) in enumerate(zip(bot['CBSA Title'], bot[m]), 1):
-        st.write(f"{i}. {mt} — {vl:,.2f}")
+    bot = df[df['GroupName']==grp][['CBSA Title',m]].nsmallest(5,m)
+    for i,(mt,vl) in enumerate(zip(bot['CBSA Title'],bot[m]),1):
+        st.markdown(f"<span style='color:#000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
 
-    # Strength & Weakness Profile
     st.markdown("### Strength & Weakness Profile")
     comb = df[df['GroupName']==grp]['Combination'].value_counts()
     pct  = (comb/comb.sum()*100).round(1)
-    st.table(pd.DataFrame({'Count':comb, 'Share (%)':pct}))
+    st.table(pd.DataFrame({'Count':comb,'Share (%)':pct}))
 
 # ─── Group Comparison ─────────────────────────────────────────────────────────
 elif mode == "Group Comparison":
@@ -166,7 +179,7 @@ elif mode == "Group Comparison":
     if not sel:
         st.warning("Select at least one cluster.")
     else:
-        rows = []
+        rows=[]
         for m in adoption_metrics:
             total_sel = summary_df[
                 (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
@@ -183,10 +196,11 @@ else:
     metro  = st.sidebar.selectbox("Metro", df[df['GroupName']==grp_ms]['CBSA Title'].sort_values())
     st.markdown(f"## {metro} — {grp_ms}")
     r = df[df['CBSA Title']==metro].iloc[0]
-    rows = []
+    rows=[]
     for m in all_metrics:
         val = r[m]
         pct = (val / totals[m] * 100) if m in adoption_metrics and totals[m] else np.nan
-        rows.append({'Metric':m,'Value':f"{val:,.2f}",'Share (%)':f"{pct:,.2f}%"} if m in count_metrics else {'Metric':m,'Value':f"{val:,.2f}"})
-    metro_df = pd.DataFrame(rows).set_index('Metric').fillna('')
+        rows.append({'Metric':m,'Value':val,'Share (%)':pct})
+    metro_df = pd.DataFrame(rows).set_index('Metric')\
+                    .style.format({'Value':'{:.2f}','Share (%)':'{:.1f}%'})
     st.table(metro_df)
