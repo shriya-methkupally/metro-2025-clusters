@@ -58,8 +58,8 @@ adoption_metrics = [
 all_metrics = talent_metrics + innovation_metrics + adoption_metrics
 
 # ─── Load & prepare data ───────────────────────────────────────────────────────
-df_raw = pd.read_csv('SHRIYA_updated raw data_v1_clusters.csv', encoding='latin1')
-df_chk = pd.read_excel('gpt check.xlsx', sheet_name=0)
+df_raw = pd.read_csv('SHRIYA_updated raw data_v4_clusters.csv', encoding='latin1')
+df_chk = pd.read_excel('cluster_groupings.xlsx', sheet_name=0)
 df = pd.merge(df_raw, df_chk[['Code','Combination','Group']],
               left_on='CBSA Code', right_on='Code', how='left')
 df['Group2']    = df['Group'].fillna(0).astype(int)
