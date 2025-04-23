@@ -2,172 +2,197 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# ─── Page config & styling ─────────────────────────────────────────────────────
+# Page styling
 st.set_page_config(page_title="AI Metro Dashboard", layout="wide", page_icon="🤖")
-st.markdown(
-    """
-    <style>
-      .stApp {
-        background-color: #F2F3F4;  /* light grey */
-        color: #1B2631;             /* dark text */
-      }
-      .stSidebar {
-        background-color: #FFFFFF;  /* sidebar stays white */
-      }
-      /* Ensure comparison table text is dark */
-      .dataframe td {
-        color: #1B2631 !important;
-        background-color: #FFFFFF !important;
-      }
-      .dataframe th {
-        color: #1B2631 !important;
-        background-color: #E5E7E9 !important;
-      }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<style>
+  .stApp {
+    background-color: #F2F3F4;
+    color: #1B2631;
+  }
+  .stSidebar {
+    background-color: #FFFFFF;
+  }
+  .dataframe td, .dataframe th {
+    color: #1B2631 !important;
+    background-color: #FFFFFF !important;
+  }
+</style>
+""", unsafe_allow_html=True)
 
-# ─── Define cluster colors ─────────────────────────────────────────────────────
+# Cluster colors
 group_colors = {
-    'AI Superstars':        '#003a70',
-    'Star AI Hubs':         '#FF9E1B',
-    'Emerging AI Centers':  '#8BB8E8',
-    'Focused AI Scalers':   '#F2CD00',
-    'Nascent AI Adopters':  '#B1B3B3',
-    'Others':               '#A569BD',
-    'Small metros':         '#58D68D'
+  'AI Superstars':'#003a70',
+  'Star AI Hubs':'#FF9E1B',
+  'Emerging AI Centers':'#8BB8E8',
+  'Focused AI Scalers':'#F2CD00',
+  'Nascent AI Adopters':'#B1B3B3',
+  'Others':'#A569BD',
+  'Small metros':'#58D68D'
 }
 
-# ─── Load & prepare data ───────────────────────────────────────────────────────
-raw   = pd.read_csv('SHRIYA_updated raw data_v1_clusters.csv', encoding='latin1')
-check = pd.read_excel('gpt check.xlsx', sheet_name=0)
+# Load data
+raw = pd.read_csv('SHRIYA_updated raw data_v1_clusters.csv', encoding='latin1')
+chk = pd.read_excel('gpt check.xlsx', sheet_name=0)
 
 df = pd.merge(
     raw,
-    check[['Code','Combination','Group']],
-    left_on='CBSA Code', right_on='Code',
+    chk[['Code','Group']],
+    left_on='CBSA Code',
+    right_on='Code',
     how='left'
 )
-df['Group2']    = df['Group'].fillna(0).astype(int)
-group_names    = {
-    1: 'AI Superstars', 2: 'Star AI Hubs', 3: 'Emerging AI Centers',
-    4: 'Focused AI Scalers', 5: 'Nascent AI Adopters',
-    6: 'Others', 0: 'Small metros'
+df['Group2'] = df['Group'].fillna(0).astype(int)
+names = {
+    1:'AI Superstars', 2:'Star AI Hubs', 3:'Emerging AI Centers',
+    4:'Focused AI Scalers', 5:'Nascent AI Adopters', 6:'Others', 0:'Small metros'
 }
-df['GroupName'] = df['Group2'].map(group_names)
+df['GroupName'] = df['Group2'].map(names)
 
-# ─── Metrics lists ─────────────────────────────────────────────────────────────
-count_metrics = ['Job Postings','AI Startups','VC Funding']
+# Define metrics
 firm_metrics  = [
-    'Firm AI Use','Firm Data Readiness',
-    'Firm Cloud Readiness','Occupational Exposure to AI'
+    'Firm AI Use',
+    'Firm Data Readiness',
+    'Firm Cloud Readiness',
+    'Occupational Exposure to AI'
 ]
-other_metrics = [
-    "Science and Engineering Bachelor's",'Phd','Profiles',
-    'Publications','Patents','Contracts','HPC'
+share_metrics = [
+    'Job Postings',
+    'AI Startups',
+    'VC Funding',
+    "Science and Engineering Bachelor's",
+    'Phd',
+    'Profiles',
+    'Publications',
+    'Patents',
+    'Contracts',
+    'HPC'
 ]
-all_metrics   = count_metrics + firm_metrics + other_metrics
+all_metrics = firm_metrics + share_metrics
 
+# Convert to numeric and compute totals for share metrics
 for c in all_metrics:
     df[c] = pd.to_numeric(df[c], errors='coerce')
-
-totals = {m: df[m].sum(skipna=True) for m in count_metrics}
+totals = {m: df[m].sum(skipna=True) for m in share_metrics}
 
 # Build summary_df
 records = []
-for grp, grp_df in df.groupby('GroupName'):
-    for metric in all_metrics:
-        arr = grp_df[metric].dropna()
+for grp, gdf in df.groupby('GroupName'):
+    for m in all_metrics:
+        arr = gdf[m].dropna()
         if arr.empty: continue
         rec = {
-            'Group':      grp,
-            'Metric':     metric,
-            'Mean':       arr.mean(),
-            'Min':        arr.min(),
-            'Max':        arr.max(),
-            'Range':      arr.max() - arr.min(),
-            'Best Metro': grp_df.loc[arr.idxmax()]['CBSA Title'],
+            'Group': grp,
+            'Metric': m,
+            'Mean': arr.mean(),
+            'Min': arr.min(),
+            'Max': arr.max(),
+            'Range': arr.max() - arr.min(),
+            'Best Metro': gdf.loc[arr.idxmax(), 'CBSA Title'],
             'Best Value': arr.max(),
-            'Worst Metro':grp_df.loc[arr.idxmin()]['CBSA Title'],
-            'Worst Value':arr.min()
+            'Worst Metro': gdf.loc[arr.idxmin(), 'CBSA Title'],
+            'Worst Value': arr.min()
         }
-        if metric in count_metrics:
-            rec['Sum']       = arr.sum()
-            rec['Share (%)'] = rec['Sum'] / totals[metric] * 100 if totals[metric] else np.nan
+        if m in share_metrics:
+            rec['Sum'] = arr.sum()
+            rec['Share (%)'] = rec['Sum'] / totals[m] * 100 if totals[m] else np.nan
         records.append(rec)
 
 summary_df = pd.DataFrame(records)
 
-# ─── Sidebar: choose mode ──────────────────────────────────────────────────────
-mode = st.sidebar.radio("View Mode", ["📊 Stats", "🔍 Compare Groups"])
+# Sidebar: mode
+mode = st.sidebar.radio("Mode", ["📊 Stats", "🔍 Compare Groups", "🔎 Metro Search"])
 
 if mode == "📊 Stats":
-    st.sidebar.header("Filter by Group & Metric")
-    group  = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
-    metrics_available = summary_df[summary_df['Group']==group]['Metric'].unique()
-    metric = st.sidebar.selectbox("Metric", metrics_available)
+    st.sidebar.header("Stats Filter")
+    grp = st.sidebar.selectbox("Group", summary_df['Group'].unique())
+    m = st.sidebar.selectbox(
+        "Metric",
+        summary_df[summary_df['Group'] == grp]['Metric'].unique()
+    )
 
-    # Header
     st.markdown(
-        f"<h1 style='color:{group_colors[group]};'>🔸 {metric} — {group}</h1>",
+        f"<h1 style='color:{group_colors[grp]};'>🔸 {m} — {grp}</h1>",
         unsafe_allow_html=True
     )
 
-    # Summary stat cards
-    row = summary_df[(summary_df['Group']==group)&(summary_df['Metric']==metric)].iloc[0]
+    row = summary_df[
+        (summary_df['Group'] == grp) & (summary_df['Metric'] == m)
+    ].iloc[0]
+
     cols = st.columns(4)
-    stats = [('Mean',row['Mean']),('Min',row['Min']),('Max',row['Max']),('Range',row['Range'])]
-    for col_box,(label,val) in zip(cols, stats):
-        col_box.markdown(
-            f"<div style='background-color:{group_colors[group]};"
-            f"padding:10px;border-radius:8px;'>"
-            f"<h4 style='color:white;margin-bottom:2px'>{label}</h4>"
-            f"<p style='color:white;font-size:20px;margin:0'>{val:.2f}</p>"
-            "</div>",
+    stats = [
+        ('Mean', row['Mean']),
+        ('Min', row['Min']),
+        ('Max', row['Max']),
+        ('Range', row['Range'])
+    ]
+    for cb, (lab, val) in zip(cols, stats):
+        cb.markdown(
+            f"<div style='background-color:{group_colors[grp]};padding:10px;border-radius:8px;'>"
+            f"<h4 style='color:white'>{lab}</h4>"
+            f"<p style='color:white;font-size:20px;margin:0'>{val:.2f}</p></div>",
             unsafe_allow_html=True
         )
 
-    if metric in count_metrics:
+    if m in share_metrics:
         c5, c6 = st.columns(2)
-        c5.metric("Sum",   f"{row['Sum']:.0f}")
-        c6.metric("Share", f"{row['Share (%)']:.1f}%")
+        c5.metric("Sum", f"{row['Sum']:.0f}")
+        c6.metric("Share (%)", f"{row['Share (%)']:.1f}%")
 
-    # Top & Bottom lists
-    st.markdown("### 🔝 Top 5 Metros")
-    top5 = df[df['GroupName']==group][['CBSA Title',metric]].dropna().nlargest(5,metric)
-    for i,(m,v) in enumerate(zip(top5['CBSA Title'],top5[metric]),1):
-        st.write(f"{i}. **{m}** — {v:.2f}")
+    st.markdown("### 🔝 Top 5")
+    top5 = df[df['GroupName'] == grp][['CBSA Title', m]].nlargest(5, m)
+    for i, (nm, v) in enumerate(zip(top5['CBSA Title'], top5[m]), 1):
+        st.write(f"{i}. **{nm}** — {v:.2f}")
 
-    st.markdown("### 🔽 Bottom 5 Metros")
-    bot5 = df[df['GroupName']==group][['CBSA Title',metric]].dropna().nsmallest(5,metric)
-    for i,(m,v) in enumerate(zip(bot5['CBSA Title'],bot5[metric]),1):
-        st.write(f"{i}. **{m}** — {v:.2f}")
+    st.markdown("### 🔽 Bottom 5")
+    bot5 = df[df['GroupName'] == grp][['CBSA Title', m]].nsmallest(5, m)
+    for i, (nm, v) in enumerate(zip(bot5['CBSA Title'], bot5[m]), 1):
+        st.write(f"{i}. **{nm}** — {v:.2f}")
 
-else:
-    st.header("🔍 Compare Cluster Groups")
-    st.markdown("Select one or more clusters to see their **aggregate share** of each count metric:")
-
-    # 6 group checkboxes
+elif mode == "🔍 Compare Groups":
+    st.header("Compare Groups")
+    st.markdown("Select clusters to view share % for count metrics.")
     cols = st.columns(3)
-    selected = []
-    for idx, grp in enumerate(group_colors.keys()):
-        if cols[idx%3].checkbox(grp):
-            selected.append(grp)
-
-    if not selected:
-        st.warning("▶️ Select at least one cluster above.")
+    sel = [
+        grp for i, grp in enumerate(group_colors)
+        if cols[i % 3].checkbox(grp)
+    ]
+    if not sel:
+        st.warning("Select at least one cluster.")
     else:
-        data = []
-        for m in count_metrics:
+        rows = []
+        for m in share_metrics:
             total_sel = summary_df[
-                (summary_df['Group'].isin(selected)) & (summary_df['Metric']==m)
+                (summary_df['Group'].isin(sel)) &
+                (summary_df['Metric'] == m)
             ]['Sum'].sum()
             pct = total_sel / totals[m] * 100 if totals[m] else np.nan
-            data.append({'Metric': m, 'Share (%)': pct})
-        comp_df = pd.DataFrame(data).set_index('Metric')
+            rows.append({'Metric': m, 'Share (%)': pct})
+        dfc = pd.DataFrame(rows).set_index('Metric').sort_index()
+        st.dataframe(
+            dfc.style.format("{:.1f}%").set_properties(color="#1B2631", background="#FFFFFF"),
+            use_container_width=True
+        )
 
-        # Render with dark text on white
-        styled = comp_df.style.format("{:.1f}%")\
-            .set_properties(**{'color':'#1B2631','background-color':'#FFFFFF'})
-        st.dataframe(styled, use_container_width=True)
+else:
+    st.header("Metro Search")
+    st.sidebar.header("Search Filter")
+    grp_ms = st.sidebar.selectbox("Group", sorted(df['GroupName'].unique()))
+    metro = st.sidebar.selectbox(
+        "Metro",
+        df[df['GroupName'] == grp_ms]['CBSA Title'].sort_values()
+    )
+
+    st.markdown(f"## {metro} — {grp_ms}")
+    r = df[df['CBSA Title'] == metro].iloc[0]
+    rows = []
+    for m in all_metrics:
+        val = r[m]
+        pct = val / totals[m] * 100 if m in share_metrics and totals[m] else np.nan
+        rows.append({'Metric': m, 'Value': val, 'Share (%)': pct})
+    dfrm = pd.DataFrame(rows).set_index('Metric')
+    st.dataframe(
+        dfrm.style.format({"Value": "{:.2f}", "Share (%)": "{:.1f}%"}),
+        use_container_width=True
+    )
