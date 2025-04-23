@@ -218,7 +218,7 @@ elif mode == "Group Comparison":
             {
                 'selector': 'thead th',
                 'props': [
-                    ('background-color', '#003a70'),
+                    ('background-color', '#ADD8E6'),
                     ('color', 'white'),
                     ('text-align', 'center'),
                     ('font-weight', 'bold'),
