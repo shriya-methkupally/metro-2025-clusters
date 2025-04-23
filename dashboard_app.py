@@ -179,18 +179,19 @@ if mode == "Group Overviews":
 elif mode == "Group Comparison":
     st.header("Group Comparison")
     st.markdown("Select clusters and pillar to compare metrics across groups.")
-    # --- Pillar filter ---
+    # --- Pillar selector ---
     pillar = st.sidebar.selectbox("Pillar", ["All", "Talent", "Innovation", "Adoption"])
     if pillar == "Talent":
         metrics_to_show = talent_metrics
     elif pillar == "Innovation":
         metrics_to_show = innovation_metrics
     elif pillar == "Adoption":
+        # show ALL adoption metrics, but avg vs share handled below
         metrics_to_show = adoption_metrics
     else:
         metrics_to_show = all_metrics
 
-    # --- Group selection ---
+    # --- Cluster checkboxes ---
     cols = st.columns(3)
     sel = [grp for i,grp in enumerate(group_colors) if cols[i%3].checkbox(grp)]
     if not sel:
@@ -198,22 +199,21 @@ elif mode == "Group Comparison":
     else:
         rows = []
         for m in metrics_to_show:
-            if m in adoption_metrics and m not in per_capita_metrics:
-                # share of total for classic adoption metrics
-                total_sel = summary_df[
-                    (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
-                ]['Sum'].sum()
-                pct = total_sel / totals[m] * 100 if totals[m] else np.nan
-                rows.append({'Metric': m, 'Share (%)': f"{pct:.1f}%"})
-            else:
-                # average of group means (covers talent, innovation, and per-capita adoption)
+            if m in per_capita_metrics:
+                # AVERAGE for the four per-capita fields
                 avg = summary_df[
-                    (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
+                    (summary_df['Group'].isin(sel)) &
+                    (summary_df['Metric'] == m)
                 ]['Mean'].mean()
                 rows.append({'Metric': m, 'Average': f"{avg:.2f}"})
+            else:
+                # SHARE for all other metrics (talent, innovation, & non-percap adoption)
+                sel_sum   = df[df['GroupName'].isin(sel)][m].sum(skipna=True)
+                total_sum = df[m].sum(skipna=True)
+                pct = sel_sum / total_sum * 100 if total_sum else np.nan
+                rows.append({'Metric': m, 'Share (%)': f"{pct:.1f}%"})
 
         comp_df = pd.DataFrame(rows).set_index('Metric')
-        # center-align via pandas styler
         styled = comp_df.style.set_table_styles([
             {'selector': 'th, td', 'props': [('text-align', 'center')]},
         ])
