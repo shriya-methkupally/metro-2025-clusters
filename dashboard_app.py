@@ -11,16 +11,10 @@ st.markdown("""
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] .stRadio label,
   [data-testid="stSidebar"] .stSelectbox label,
-  [data-testid="stSidebar"] .stCheckbox label {
-    color: #000000 !important;
-  }
+  [data-testid="stSidebar"] .stCheckbox label { color: #000000 !important; }
   .stMarkdown h1, .stMarkdown h2, .stMarkdown h3,
-  .stMarkdown p, .stMarkdown span {
-    color: #000000 !important;
-  }
-  .stTable td, .stTable th {
-    color: #000000 !important; background-color: #FFFFFF !important;
-  }
+  .stMarkdown p, .stMarkdown span { color: #000000 !important; }
+  .stTable td, .stTable th { color: #000000 !important; background-color: #FFFFFF !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -53,11 +47,11 @@ all_metrics = talent_metrics + innovation_metrics + adoption_metrics
 
 # ─── Load data & merge cluster info ─────────────────────────────────────────────
 df = pd.read_csv('SHRIYA_updated raw data_v4_clusters.csv', encoding='latin1')
-cluster_info = pd.read_excel('cluster_groupings.xlsx', sheet_name=0)
+cluster_info = pd.read_excel('cluster_groupings.xlsx', sheet_name='Sheet1')
 
 df = df.merge(
-    cluster_info[['CBSA Code','Combination','Group','talent_score','innovation_score','adoption_score']],
-    on='CBSA Code', how='left'
+    cluster_info[['Code','Combination','Group','talent_score','innovation_score','adoption_score']],
+    left_on='CBSA Code', right_on='Code', how='left'
 )
 df['Group2'] = df['Group'].fillna(0).astype(int)
 name_map = {
@@ -102,12 +96,10 @@ mode = st.sidebar.radio("Dashboard View",
 # ─── Group Overviews ──────────────────────────────────────────────────────────
 if mode == "Group Overviews":
     st.sidebar.header("Overview Filters")
-    # pillar as icon-radio
     pillar = st.sidebar.radio("Pillar",
         ["📊 All","🎓 Talent","🔬 Innovation","🤖 Adoption"]
     )
     grp = st.sidebar.selectbox("Cluster Group", sorted(summary_df['Group'].unique()))
-    # determine metric list
     if pillar=="🎓 Talent":
         mets = [m for m in talent_metrics if m in summary_df['Metric'].unique()]
     elif pillar=="🔬 Innovation":
@@ -124,46 +116,35 @@ if mode == "Group Overviews":
     t_score = group_df['talent_score'].mean()
     i_score = group_df['innovation_score'].mean()
     a_score = group_df['adoption_score'].mean()
-
     k1,k2,k3,k4 = st.columns([1,1,1,1])
-    k1.metric("Count", f"{count_metros:,}")
-    k2.metric("Talent", f"{t_score:0.00}")
+    k1.metric("Count",      f"{count_metros:,}")
+    k2.metric("Talent",     f"{t_score:0.00}")
     k3.metric("Innovation", f"{i_score:0.00}")
-    k4.metric("Adoption", f"{a_score:0.00}")
+    k4.metric("Adoption",   f"{a_score:0.00}")
 
     # ─ Callout Panel ─
     arr = group_df[m].dropna()
     best_val = arr.max(); best_metro = group_df.loc[arr.idxmax(),'CBSA Title']
-    worst_val = arr.min(); worst_metro = group_df.loc[arr.idxmin(),'CBSA Title']
-    spread = best_val - worst_val
-
+    worst_val= arr.min(); worst_metro= group_df.loc[arr.idxmin(),'CBSA Title']
+    spread   = best_val - worst_val
     st.success(f"🏆 Top Metro: {best_metro} — {best_val:0.00}")
-    st.error(f"⚠️ Biggest Spread: {best_val:0.00} vs {worst_val:0.00} (Δ {spread:0.00})")
+    st.error  (f"⚠️ Biggest Spread: {best_val:0.00} vs {worst_val:0.00} (Δ {spread:0.00})")
 
     # ─ Stat Cards ─
     row = summary_df[(summary_df['Group']==grp)&(summary_df['Metric']==m)].iloc[0]
     c1,c2,c3,c4,c5 = st.columns(5)
-    stats = [
-        ('Mean',row['Mean']),('Min',row['Min']),
-        ('Max',row['Max']),('Range',row['Range'])
-    ]
-    for box,(lbl,val) in zip([c1,c2,c3,c4],stats):
-        box.metric(lbl, f"{val:0.00}")
-
+    cards = [('Mean',row['Mean']),('Min',row['Min']),('Max',row['Max']),('Range',row['Range'])]
+    for col_box,(lbl,val) in zip([c1,c2,c3,c4], cards):
+        col_box.metric(lbl, f"{val:0.00}")
     if m in adoption_metrics:
         c5.metric("Share (%)", f"{row['Share (%)']:0.00}%")
 
     # ─ Top/Bottom Metros ─
     st.markdown("### Top Metros")
-    for i,(mt,vl) in enumerate(
-        zip(*group_df[['CBSA Title',m]].nlargest(5,m).values.T),1
-    ):
+    for i,(mt,vl) in enumerate(zip(*group_df[['CBSA Title',m]].nlargest(5,m).values.T),1):
         st.markdown(f"{i}. {mt} — {vl:0.00}")
-
     st.markdown("### Bottom Metros")
-    for i,(mt,vl) in enumerate(
-        zip(*group_df[['CBSA Title',m]].nsmallest(5,m).values.T),1
-    ):
+    for i,(mt,vl) in enumerate(zip(*group_df[['CBSA Title',m]].nsmallest(5,m).values.T),1):
         st.markdown(f"{i}. {mt} — {vl:0.00}")
 
     # ─ Strength & Weakness Heatmap ─
@@ -180,12 +161,8 @@ if mode == "Group Overviews":
 elif mode == "Group Comparison":
     st.header("Group Comparison")
     st.markdown("Select clusters to compare their adoption shares:")
-
     cols = st.columns(3)
-    selected = [
-        grp for i,grp in enumerate(group_colors)
-        if cols[i%3].checkbox(grp)
-    ]
+    selected = [grp for i,grp in enumerate(group_colors) if cols[i%3].checkbox(grp)]
     if not selected:
         st.warning("Please select at least one cluster.")
     else:
@@ -208,9 +185,7 @@ else:
     st.header("Metro Search")
     st.sidebar.header("Search Filter")
     grp_ms = st.sidebar.selectbox("Cluster Group", sorted(df['GroupName'].unique()))
-    metro  = st.sidebar.selectbox("Metro",
-                 df[df['GroupName']==grp_ms]['CBSA Title'].sort_values())
-
+    metro  = st.sidebar.selectbox("Metro", df[df['GroupName']==grp_ms]['CBSA Title'].sort_values())
     st.markdown(f"## {metro} — {grp_ms}")
     r = df[df['CBSA Title']==metro].iloc[0]
     rows=[]
