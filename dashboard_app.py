@@ -214,10 +214,29 @@ elif mode == "Group Comparison":
                 rows.append({'Metric': m, 'Share (%)': f"{pct:.1f}%"})
 
         comp_df = pd.DataFrame(rows).set_index('Metric')
-        styled = comp_df.style.set_table_styles([
-            {'selector': 'th, td', 'props': [('text-align', 'center')]},
-        ])
-        st.table(styled)
+
+styled = comp_df.style.set_table_styles([
+    # Header styling
+    {
+      'selector': 'thead th',
+      'props': [
+         ('background-color', '#003a70'),
+         ('color',            'white'),
+         ('text-align',       'center'),
+         ('font-weight',      'bold')
+      ]
+    },
+    # Body cell centering
+    {
+      'selector': 'tbody td',
+      'props': [
+         ('text-align', 'center')
+      ]
+    }
+])
+
+st.table(styled)
+
 
 
 # ─── Metro Search ─────────────────────────────────────────────────────────────
