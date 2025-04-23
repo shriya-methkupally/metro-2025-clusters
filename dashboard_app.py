@@ -6,24 +6,22 @@ import numpy as np
 st.set_page_config(page_title="AI Metro Dashboard", layout="wide", page_icon="🤖")
 st.markdown("""
 <style>
-  /* App background and default text color */
-  .stApp {
-    background-color: #F2F3F4 !important;
-    color: #000 !important;
-  }
-  /* Sidebar background and text */
-  [data-testid="stSidebar"] {
-    background-color: #FFFFFF !important;
-  }
+  /* App background */
+  .stApp { background-color: #F2F3F4 !important; }
+  /* Sidebar */
+  [data-testid="stSidebar"] { background-color: #FFFFFF !important; }
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] .stRadio label,
   [data-testid="stSidebar"] .stSelectbox label,
   [data-testid="stSidebar"] .stCheckbox label {
-    color: #000 !important;
+    color: #000000 !important;
   }
-  /* Center-align only table cell content */
+  /* Main text */
+  [data-testid="stMarkdownContainer"] * { color: #000000 !important; }
+  /* Tables */
   .stTable td, .stTable th {
-    text-align: center !important;
+    color: #000000 !important;
+    background-color: #FFFFFF !important;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -158,12 +156,12 @@ if mode == "Group Overviews":
     st.markdown("### Top Metros")
     top = df[df['GroupName']==grp][['CBSA Title',m]].nlargest(5,m)
     for i,(mt,vl) in enumerate(zip(top['CBSA Title'],top[m]),1):
-        st.markdown(f"<span style='color:#000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:#000000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
 
     st.markdown("### Bottom Metros")
     bot = df[df['GroupName']==grp][['CBSA Title',m]].nsmallest(5,m)
     for i,(mt,vl) in enumerate(zip(bot['CBSA Title'],bot[m]),1):
-        st.markdown(f"<span style='color:#000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='color:#000000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
 
     st.markdown("### Strength & Weakness Profile")
     comb = df[df['GroupName']==grp]['Combination'].value_counts()
@@ -199,8 +197,7 @@ else:
     rows=[]
     for m in all_metrics:
         val = r[m]
-        pct = (val / totals[m] * 100) if m in adoption_metrics and totals[m] else np.nan
+        pct = (val/totals[m]*100) if m in adoption_metrics and totals[m] else np.nan
         rows.append({'Metric':m,'Value':val,'Share (%)':pct})
-    metro_df = pd.DataFrame(rows).set_index('Metric')\
-                    .style.format({'Value':'{:.2f}','Share (%)':'{:.1f}%'})
-    st.table(metro_df)
+    metro_df = pd.DataFrame(rows).set_index('Metric')
+    st.table(metro_df.style.format({'Value':'{:.2f}','Share (%)':'{:.1f}%'}))
