@@ -242,19 +242,22 @@ else:
     st.header("Metro Search")
     st.sidebar.header("Search Filter")
 
-    # --- selectors ---
+    # --- Cluster & Metro selectors ---
     grp_ms = st.sidebar.selectbox(
-        "Cluster Group", sorted(df['GroupName'].unique())
+        "Cluster Group",
+        sorted(df['GroupName'].unique())
     )
     metro = st.sidebar.selectbox(
-        "Metro", df[df['GroupName']==grp_ms]['CBSA Title'].sort_values()
+        "Metro",
+        df[df['GroupName'] == grp_ms]['CBSA Title'].sort_values()
     )
+
     st.markdown(f"## {metro} — {grp_ms}")
 
-    # --- grab the metro row ---
-    r = df[df['CBSA Title']==metro].iloc[0]
+    # --- Fetch the metro’s data row ---
+    r = df[df['CBSA Title'] == metro].iloc[0]
 
-    # --- build rows: always show Value; show Share(%) only for non-per-capita metrics ---
+    # --- Build rows: always Value; Share (%) for non–per-capita metrics ---
     rows = []
     for m in all_metrics:
         val = r[m]
@@ -270,19 +273,17 @@ else:
 
     metro_df = pd.DataFrame(rows).set_index('Metric')
 
-    # --- styling to match Group Comparison ---
+    # --- Styling to match Group Comparison ---
     styled = metro_df.style.set_table_styles([
-        # header
         {
             'selector': 'thead th',
             'props': [
-                ('background-color', '#ADD8E6'),
+                ('background-color', '#003a70'),
                 ('color',            'white'),
                 ('text-align',       'center'),
                 ('font-weight',      'bold'),
             ]
         },
-        # body
         {
             'selector': 'tbody td',
             'props': [
