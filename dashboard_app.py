@@ -16,8 +16,6 @@ st.markdown("""
   [data-testid="stSidebar"] .stCheckbox label {
     color: #000000 !important;
   }
-  /* Main text */
-  [data-testid="stMarkdownContainer"] * { color: #000000 !important; }
   /* Tables center aligned */
   .stTable td, .stTable th {
     text-align: center !important;
@@ -27,8 +25,12 @@ st.markdown("""
 
 # ─── Cluster colors & definitions ──────────────────────────────────────────────
 group_colors = {
-    'AI Superstars':'#003a70','Star AI Hubs':'#FF9E1B','Emerging AI Centers':'#8BB8E8',
-    'Focused AI Scalers':'#F2CD00','Nascent AI Adopters':'#B1B3B3','Others':'#A569BD',
+    'AI Superstars':'#003a70',
+    'Star AI Hubs':'#FF9E1B',
+    'Emerging AI Centers':'#8BB8E8',
+    'Focused AI Scalers':'#F2CD00',
+    'Nascent AI Adopters':'#B1B3B3',
+    'Others':'#A569BD',
     'Small metros':'#58D68D'
 }
 group_defs = {
@@ -55,7 +57,10 @@ adoption_metrics = [
     'Firm AI Use','Firm Data Readiness','Firm Cloud Readiness','Occupational Exposure to AI'
 ]
 per_capita_metrics = [
-    'Firm AI Use','Firm Data Readiness','Firm Cloud Readiness','Occupational Exposure to AI'
+    'Firm AI Use',
+    'Firm Data Readiness',
+    'Firm Cloud Readiness',
+    'Occupational Exposure to AI'
 ]
 all_metrics = talent_metrics + innovation_metrics + adoption_metrics
 
@@ -80,14 +85,6 @@ df['GroupName'] = df['Group2'].map(names)
 for c in all_metrics:
     df[c] = pd.to_numeric(df[c], errors='coerce')
 
-# ─── Per-capita vs. absolute metrics ─────────────────────────────────────────
-per_capita_metrics = [
-    'Firm AI Use',
-    'Firm Data Readiness',
-    'Firm Cloud Readiness',
-    'Occupational Exposure to AI'
-]
-
 # ─── Precompute totals for shares (all non–per-capita metrics) ───────────────
 totals = {
     m: df[m].sum(skipna=True)
@@ -108,11 +105,10 @@ for grp, gdf in df.groupby('GroupName'):
             'Mean': arr.mean(),
             'Min': arr.min(),
             'Max': arr.max(),
-            'Range': arr.max() - arr.min(),
             'Best Metro': gdf.loc[arr.idxmax(), 'CBSA Title'],
             'Worst Metro': gdf.loc[arr.idxmin(), 'CBSA Title']
         }
-        if m in adoption_metrics:
+        if m in adoption_metrics and m not in per_capita_metrics:
             rec['Sum'] = arr.sum()
             rec['Share (%)'] = rec['Sum'] / totals[m] * 100 if totals[m] else np.nan
         records.append(rec)
@@ -211,14 +207,12 @@ elif mode == "Group Comparison":
         rows = []
         for m in metrics_to_show:
             if m in per_capita_metrics:
-                # Average for per-capita metrics
                 avg = summary_df[
                     (summary_df['Group'].isin(sel)) &
                     (summary_df['Metric'] == m)
                 ]['Mean'].mean()
                 rows.append({'Metric': m, 'Average': f"{avg:.2f}"})
             else:
-                # Share for all other metrics
                 sel_sum = df[df['GroupName'].isin(sel)][m].sum(skipna=True)
                 total_sum = df[m].sum(skipna=True)
                 pct = sel_sum / total_sum * 100 if total_sum else np.nan
@@ -230,10 +224,10 @@ elif mode == "Group Comparison":
             {
                 'selector': 'thead th',
                 'props': [
-                    ('background-color', '#ADD8E6'),
-                    ('color', 'white'),
-                    ('text-align', 'center'),
-                    ('font-weight', 'bold'),
+                    ('background-color', '#003a70'),
+                    ('color',            'white'),
+                    ('text-align',       'center'),
+                    ('font-weight',      'bold'),
                 ]
             },
             # Body cell centering
@@ -246,15 +240,12 @@ elif mode == "Group Comparison":
         ])
         st.table(styled)
 
-
-
-
 # ─── Metro Search ─────────────────────────────────────────────────────────────
 else:
     st.header("Metro Search")
     st.sidebar.header("Search Filter")
 
-    # --- Cluster & Metro selectors ---
+    # Cluster & Metro selectors
     grp_ms = st.sidebar.selectbox(
         "Cluster Group",
         sorted(df['GroupName'].unique())
@@ -263,20 +254,16 @@ else:
         "Metro",
         df[df['GroupName'] == grp_ms]['CBSA Title'].sort_values()
     )
-
     st.markdown(f"## {metro} — {grp_ms}")
 
-    # --- Fetch the metro’s data row ---
+    # Fetch the metro’s data row
     r = df[df['CBSA Title'] == metro].iloc[0]
 
-    # --- Build rows: always Value; Share (%) for non–per-capita metrics ---
+    # Build rows: Value + Share(%) for non–per-capita metrics
     rows = []
     for m in all_metrics:
         val = r[m]
-        row = {
-            'Metric': m,
-            'Value': f"{val:.2f}"
-        }
+        row = {'Metric': m, 'Value': f"{val:.2f}"}
         if m not in per_capita_metrics:
             total = totals.get(m, 0)
             pct = (val / total * 100) if total else np.nan
@@ -285,7 +272,7 @@ else:
 
     metro_df = pd.DataFrame(rows).set_index('Metric')
 
-    # --- Styling to match Group Comparison ---
+    # Styling to match Group Comparison
     styled = metro_df.style.set_table_styles([
         {
             'selector': 'thead th',
