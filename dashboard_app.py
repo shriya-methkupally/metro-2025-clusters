@@ -241,23 +241,57 @@ elif mode == "Group Comparison":
 else:
     st.header("Metro Search")
     st.sidebar.header("Search Filter")
+    # select group & metro
     grp_ms = st.sidebar.selectbox("Cluster Group", sorted(df['GroupName'].unique()))
-    metro = st.sidebar.selectbox("Metro", df[df['GroupName'] == grp_ms]['CBSA Title'].sort_values())
+    metro  = st.sidebar.selectbox(
+        "Metro",
+        df[df['GroupName']==grp_ms]['CBSA Title'].sort_values()
+    )
     st.markdown(f"## {metro} — {grp_ms}")
-    r = df[df['CBSA Title'] == metro].iloc[0]
+
+    # fetch the row for this metro
+    r = df[df['CBSA Title']==metro].iloc[0]
+
+    # build the table rows
     rows = []
     for m in all_metrics:
-        if m in adoption_metrics:
-            if m in per_capita_metrics:
-                rows.append({'Metric': m, 'Average': r[m]})
-            else:
-                share = r[m] / totals[m] * 100 if totals[m] else np.nan
-                rows.append({'Metric': m, 'Share (%)': share})
+        val = r[m]
+        row = {'Metric': m, 'Value': f"{val:.2f}"}
+
+        if m in per_capita_metrics:
+            # show the group-average for per-capita metrics
+            avg = summary_df[
+                (summary_df['Group']==grp_ms) &
+                (summary_df['Metric']==m)
+            ]['Mean'].iloc[0]
+            row['Average'] = f"{avg:.2f}"
         else:
-            rows.append({'Metric': m, 'Value': r[m]})
+            # show share (%) for all other metrics
+            total = totals.get(m, 0)
+            pct = val / total * 100 if total else np.nan
+            row['Share (%)'] = f"{pct:.1f}%"
+
+        rows.append(row)
+
     metro_df = pd.DataFrame(rows).set_index('Metric')
-    st.table(metro_df.style.format({
-        'Value': '{:.2f}',
-        'Average': '{:.2f}',
-        'Share (%)': '{:.1f}%'
-    }))
+
+    # apply same styling as in Group Comparison
+    styled = metro_df.style.set_table_styles([
+        {
+            'selector': 'thead th',
+            'props': [
+                ('background-color', '#ADD8E6'),
+                ('color',            'white'),
+                ('text-align',       'center'),
+                ('font-weight',      'bold'),
+            ]
+        },
+        {
+            'selector': 'tbody td',
+            'props': [
+                ('text-align', 'center'),
+            ]
+        }
+    ])
+
+    st.table(styled)
