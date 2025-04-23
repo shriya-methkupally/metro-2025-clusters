@@ -212,8 +212,8 @@ elif mode == "Group Comparison":
                 total_sum = df[m].sum(skipna=True)
                 pct = sel_sum / total_sum * 100 if total_sum else np.nan
                 rows.append({'Metric': m, 'Share (%)': f"{pct:.1f}%"})
-
-        comp_df = pd.DataFrame(rows).set_index('Metric')
+              
+comp_df = pd.DataFrame(rows).set_index('Metric')
 
 styled = comp_df.style.set_table_styles([
     # Header styling
@@ -236,6 +236,7 @@ styled = comp_df.style.set_table_styles([
 ])
 
 st.table(styled)
+
 
 
 
