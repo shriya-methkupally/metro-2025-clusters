@@ -178,23 +178,47 @@ if mode == "Group Overviews":
 # ─── Group Comparison ─────────────────────────────────────────────────────────
 elif mode == "Group Comparison":
     st.header("Group Comparison")
-    st.markdown("Select clusters to view combined averages or shares for each adoption metric.")
+    st.markdown("Select clusters and pillar to compare metrics across groups.")
+    # --- Pillar filter ---
+    pillar = st.sidebar.selectbox("Pillar", ["All", "Talent", "Innovation", "Adoption"])
+    if pillar == "Talent":
+        metrics_to_show = talent_metrics
+    elif pillar == "Innovation":
+        metrics_to_show = innovation_metrics
+    elif pillar == "Adoption":
+        metrics_to_show = adoption_metrics
+    else:
+        metrics_to_show = all_metrics
+
+    # --- Group selection ---
     cols = st.columns(3)
-    sel = [grp for i, grp in enumerate(group_colors) if cols[i % 3].checkbox(grp)]
+    sel = [grp for i,grp in enumerate(group_colors) if cols[i%3].checkbox(grp)]
     if not sel:
         st.warning("Select at least one cluster.")
     else:
         rows = []
-        for m in adoption_metrics:
-            if m in per_capita_metrics:
-                avg = summary_df[(summary_df['Group'].isin(sel)) & (summary_df['Metric'] == m)]['Mean'].mean()
-                rows.append({'Metric': m, 'Average': avg})
-            else:
-                total_sel = summary_df[(summary_df['Group'].isin(sel)) & (summary_df['Metric'] == m)]['Sum'].sum()
+        for m in metrics_to_show:
+            if m in adoption_metrics and m not in per_capita_metrics:
+                # share of total for classic adoption metrics
+                total_sel = summary_df[
+                    (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
+                ]['Sum'].sum()
                 pct = total_sel / totals[m] * 100 if totals[m] else np.nan
-                rows.append({'Metric': m, 'Share (%)': pct})
+                rows.append({'Metric': m, 'Share (%)': f"{pct:.1f}%"})
+            else:
+                # average of group means (covers talent, innovation, and per-capita adoption)
+                avg = summary_df[
+                    (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
+                ]['Mean'].mean()
+                rows.append({'Metric': m, 'Average': f"{avg:.2f}"})
+
         comp_df = pd.DataFrame(rows).set_index('Metric')
-        st.table(comp_df)
+        # center-align via pandas styler
+        styled = comp_df.style.set_table_styles([
+            {'selector': 'th, td', 'props': [('text-align', 'center')]},
+        ])
+        st.table(styled)
+
 
 # ─── Metro Search ─────────────────────────────────────────────────────────────
 else:
