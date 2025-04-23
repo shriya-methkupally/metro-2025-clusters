@@ -22,6 +22,7 @@ st.markdown("""
   .stTable td, .stTable th {
     color: #000000 !important;
     background-color: #FFFFFF !important;
+    text-align: center !important;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -55,6 +56,9 @@ adoption_metrics = [
     'Job Postings','AI Startups','VC Funding',
     'Firm AI Use','Firm Data Readiness','Firm Cloud Readiness','Occupational Exposure to AI'
 ]
+per_capita_metrics = [
+    'Firm AI Use','Firm Data Readiness','Firm Cloud Readiness','Occupational Exposure to AI'
+]
 all_metrics = talent_metrics + innovation_metrics + adoption_metrics
 
 # ─── Load & prepare data ───────────────────────────────────────────────────────
@@ -67,76 +71,19 @@ df = df.merge(
     left_on='CBSA Code', right_on='Code',
     how='left'
 )
-df['Group2']    = df['Group'].fillna(0).astype(int)
-names = {
-    1:'AI Superstars',2:'Star AI Hubs',3:'Emerging AI Centers',
-    4:'Focused AI Scalers',5:'Nascent AI Adopters',6:'Others',0:'Small metros'
-}
-df['GroupName'] = df['Group2'].map(names)
-
-# convert metrics to numeric
-for c in all_metrics:
-    df[c] = pd.to_numeric(df[c], errors='coerce')
-
-# precompute totals for shares
-totals = {m: df[m].sum(skipna=True) for m in adoption_metrics}
-
-# ─── Build summary_df ─────────────────────────────────────────────────────────
-records = []
-for grp, gdf in df.groupby('GroupName'):
-    for m in all_metrics:
-        arr = gdf[m].dropna()
-        if arr.empty:
-            continue
-        rec = {
-            'Group': grp,
-            'Metric': m,
-            'Mean': arr.mean(),
-            'Min':  arr.min(),
-            'Max':  arr.max(),
-            'Range': arr.max() - arr.min(),
-            'Best Metro': gdf.loc[arr.idxmax(),'CBSA Title'],
-            'Worst Metro':gdf.loc[arr.idxmin(),'CBSA Title']
-        }
-        if m in adoption_metrics:
-            rec['Sum']       = arr.sum()
-            rec['Share (%)'] = rec['Sum'] / totals[m] * 100 if totals[m] else np.nan
-        records.append(rec)
-summary_df = pd.DataFrame(records)
-
-# ─── Sidebar: select view ──────────────────────────────────────────────────────
-mode = st.sidebar.radio("View", ["Group Overviews","Group Comparison","Metro Search"])
+... (rest of original code unchanged) ...
 
 # ─── Group Overviews ──────────────────────────────────────────────────────────
 if mode == "Group Overviews":
-    st.sidebar.header("Overview Filter")
-    pillar = st.sidebar.selectbox("Pillar", ["All","Talent","Innovation","Adoption"])
-    grp = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
-    if pillar == "Talent":
-        mets = [m for m in talent_metrics if m in summary_df['Metric'].unique()]
-    elif pillar == "Innovation":
-        mets = [m for m in innovation_metrics if m in summary_df['Metric'].unique()]
-    elif pillar == "Adoption":
-        mets = [m for m in adoption_metrics if m in summary_df['Metric'].unique()]
-    else:
-        mets = summary_df[summary_df['Group']==grp]['Metric'].unique().tolist()
-    m = st.sidebar.selectbox("Metric", mets)
-
-    # header + definition
-    st.markdown(
-        f"<h1 style='color:{group_colors[grp]};'>{m} — {grp}</h1>"
-        f"<p><em>{group_defs[grp]}</em></p>",
-        unsafe_allow_html=True
-    )
-
+    ...
     # stats cards
     cnt = df[df['GroupName']==grp].shape[0]
     row = summary_df[(summary_df['Group']==grp)&(summary_df['Metric']==m)].iloc[0]
-    cols = st.columns(5)
+    cols = st.columns(4)
     stats = [
         ('Count',cnt),
         ('Mean',row['Mean']),('Min',row['Min']),
-        ('Max',row['Max']),('Range',row['Range'])
+        ('Max',row['Max'])
     ]
     for box,(lbl,val) in zip(cols,stats):
         box.markdown(
@@ -148,30 +95,26 @@ if mode == "Group Overviews":
             unsafe_allow_html=True
         )
 
-    if m in adoption_metrics:
+    # only show sum/share for non-per-capita adoption metrics
+    if m in adoption_metrics and m not in per_capita_metrics:
         c5,c6 = st.columns(2)
         c5.metric("Sum",f"{row['Sum']:.0f}")
         c6.metric("Share (%)",f"{row['Share (%)']:.1f}%")
 
     st.markdown("### Top Metros")
-    top = df[df['GroupName']==grp][['CBSA Title',m]].nlargest(5,m)
-    for i,(mt,vl) in enumerate(zip(top['CBSA Title'],top[m]),1):
-        st.markdown(f"<span style='color:#000000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
-
-    st.markdown("### Bottom Metros")
-    bot = df[df['GroupName']==grp][['CBSA Title',m]].nsmallest(5,m)
-    for i,(mt,vl) in enumerate(zip(bot['CBSA Title'],bot[m]),1):
-        st.markdown(f"<span style='color:#000000'>{i}. {mt} — {vl:.2f}</span>", unsafe_allow_html=True)
-
+    ...
     st.markdown("### Strength & Weakness Profile")
     comb = df[df['GroupName']==grp]['Combination'].value_counts()
     pct  = (comb/comb.sum()*100).round(1)
-    st.table(pd.DataFrame({'Count':comb,'Share (%)':pct}))
+    profile_df = pd.DataFrame({'Count':comb,'Share (%)':pct})
+    st.table(profile_df.style.set_table_styles([
+        {'selector': 'th, td', 'props': [('text-align', 'center')]}
+    ]))
 
 # ─── Group Comparison ─────────────────────────────────────────────────────────
 elif mode == "Group Comparison":
     st.header("Group Comparison")
-    st.markdown("Select clusters to view combined share (%) for each adoption metric.")
+    st.markdown("Select clusters to view either combined share (%) or average value for each adoption metric.")
     cols = st.columns(3)
     sel = [grp for i,grp in enumerate(group_colors) if cols[i%3].checkbox(grp)]
     if not sel:
@@ -179,25 +122,31 @@ elif mode == "Group Comparison":
     else:
         rows=[]
         for m in adoption_metrics:
-            total_sel = summary_df[
-                (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
-            ]['Sum'].sum()
-            pct = total_sel / totals[m] * 100 if totals[m] else np.nan
-            rows.append({'Metric':m,'Share (%)':pct})
-        st.table(pd.DataFrame(rows).set_index('Metric'))
+            if m in per_capita_metrics:
+                # average of group means
+                means = summary_df[(summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)]['Mean']
+                val = means.mean() if not means.empty else np.nan
+                rows.append({'Metric':m,'Average':val})
+            else:
+                total_sel = summary_df[
+                    (summary_df['Group'].isin(sel)) & (summary_df['Metric']==m)
+                ]['Sum'].sum()
+                pct = total_sel / totals[m] * 100 if totals[m] else np.nan
+                rows.append({'Metric':m,'Share (%)':pct})
+        comp_df = pd.DataFrame(rows).set_index('Metric')
+        st.table(comp_df.style.format({
+            'Average':'{:.2f}','Share (%)':'{:.1f}%'
+        }).set_table_styles([
+            {'selector': 'th, td', 'props': [('text-align', 'center')]}
+        ]))
 
 # ─── Metro Search ─────────────────────────────────────────────────────────────
 else:
     st.header("Metro Search")
-    st.sidebar.header("Search Filter")
-    grp_ms = st.sidebar.selectbox("Cluster Group", sorted(df['GroupName'].unique()))
-    metro  = st.sidebar.selectbox("Metro", df[df['GroupName']==grp_ms]['CBSA Title'].sort_values())
-    st.markdown(f"## {metro} — {grp_ms}")
-    r = df[df['CBSA Title']==metro].iloc[0]
-    rows=[]
-    for m in all_metrics:
-        val = r[m]
-        pct = (val/totals[m]*100) if m in adoption_metrics and totals[m] else np.nan
-        rows.append({'Metric':m,'Value':val,'Share (%)':pct})
+    ...
     metro_df = pd.DataFrame(rows).set_index('Metric')
-    st.table(metro_df.style.format({'Value':'{:.2f}','Share (%)':'{:.1f}%'}))
+    st.table(metro_df.style.format({
+        'Value':'{:.2f}','Share (%)':'{:.1f}%'
+    }).set_table_styles([
+        {'selector': 'th, td', 'props': [('text-align', 'center')]}
+    ]))
