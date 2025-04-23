@@ -80,21 +80,6 @@ df['GroupName'] = df['Group2'].map(names)
 for c in all_metrics:
     df[c] = pd.to_numeric(df[c], errors='coerce')
 
-# ─── Per-capita vs. absolute metrics ─────────────────────────────────────────
-per_capita_metrics = [
-    'Firm AI Use',
-    'Firm Data Readiness',
-    'Firm Cloud Readiness',
-    'Occupational Exposure to AI'
-]
-
-# ─── Precompute totals for shares (all non–per-capita metrics) ───────────────
-totals = {
-    m: df[m].sum(skipna=True)
-    for m in all_metrics
-    if m not in per_capita_metrics
-}
-
 # ─── Build summary_df ─────────────────────────────────────────────────────────
 records = []
 for grp, gdf in df.groupby('GroupName'):
