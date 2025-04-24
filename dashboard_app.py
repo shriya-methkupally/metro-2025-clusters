@@ -80,6 +80,21 @@ df['GroupName'] = df['Group2'].map(names)
 for c in all_metrics:
     df[c] = pd.to_numeric(df[c], errors='coerce')
 
+# ─── Per-capita vs. absolute metrics ─────────────────────────────────────────
+per_capita_metrics = [
+    'Firm AI Use',
+    'Firm Data Readiness',
+    'Firm Cloud Readiness',
+    'Occupational Exposure to AI'
+]
+
+# ─── Precompute totals for shares (all non–per-capita metrics) ───────────────
+totals = {
+    m: df[m].sum(skipna=True)
+    for m in all_metrics
+    if m not in per_capita_metrics
+}
+
 # ─── Build summary_df ─────────────────────────────────────────────────────────
 records = []
 for grp, gdf in df.groupby('GroupName'):
@@ -232,3 +247,61 @@ elif mode == "Group Comparison":
         st.table(styled)
 
 
+
+
+# ─── Metro Search ─────────────────────────────────────────────────────────────
+else:
+    st.header("Metro Search")
+    st.sidebar.header("Search Filter")
+
+    # --- Cluster & Metro selectors ---
+    grp_ms = st.sidebar.selectbox(
+        "Cluster Group",
+        sorted(df['GroupName'].unique())
+    )
+    metro = st.sidebar.selectbox(
+        "Metro",
+        df[df['GroupName'] == grp_ms]['CBSA Title'].sort_values()
+    )
+
+    st.markdown(f"## {metro} — {grp_ms}")
+
+    # --- Fetch the metro’s data row ---
+    r = df[df['CBSA Title'] == metro].iloc[0]
+
+    # --- Build rows: always Value; Share (%) for non–per-capita metrics ---
+    rows = []
+    for m in all_metrics:
+        val = r[m]
+        row = {
+            'Metric': m,
+            'Value': f"{val:.2f}"
+        }
+        if m not in per_capita_metrics:
+            total = totals.get(m, 0)
+            pct = (val / total * 100) if total else np.nan
+            row['Share (%)'] = f"{pct:.1f}%"
+        rows.append(row)
+
+    metro_df = pd.DataFrame(rows).set_index('Metric')
+
+    # --- Styling to match Group Comparison ---
+    styled = metro_df.style.set_table_styles([
+        {
+            'selector': 'thead th',
+            'props': [
+                ('background-color', '#003a70'),
+                ('color',            'white'),
+                ('text-align',       'center'),
+                ('font-weight',      'bold'),
+            ]
+        },
+        {
+            'selector': 'tbody td',
+            'props': [
+                ('text-align', 'center'),
+            ]
+        }
+    ])
+
+    st.table(styled)
