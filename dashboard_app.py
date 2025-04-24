@@ -8,7 +8,7 @@ st.markdown("""
 <style>
   .stApp { background-color: #F2F3F4 !important; }
 
-  /* Sidebar styling */
+  /* Sidebar text */
   [data-testid="stSidebar"] { background-color: #FFFFFF !important; }
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] .stRadio label,
@@ -17,18 +17,26 @@ st.markdown("""
     color: #000 !important;
   }
 
-  /* Force all markdown text to black */
+  /* All markdown text */
   [data-testid="stMarkdownContainer"] * {
     color: #000 !important;
   }
 
-  /* Center-align and force table text to black */
-  .stTable td, .stTable th {
+  /* Table headers */
+  .stTable thead th {
+    background-color: #ADD8E6 !important;
+    color:            #000    !important;
+    text-align:       center  !important;
+  }
+
+  /* Table body cells */
+  .stTable tbody td {
     text-align: center !important;
-    color:      #000 !important;
+    color:      #000   !important;
   }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # ─── Cluster colors & definitions ──────────────────────────────────────────────
