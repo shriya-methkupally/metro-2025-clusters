@@ -7,15 +7,29 @@ st.set_page_config(page_title="AI Metro Dashboard", layout="wide", page_icon="�
 st.markdown("""
 <style>
   .stApp { background-color: #F2F3F4 !important; }
+
+  /* Sidebar styling */
   [data-testid="stSidebar"] { background-color: #FFFFFF !important; }
   [data-testid="stSidebar"] label,
   [data-testid="stSidebar"] .stRadio label,
   [data-testid="stSidebar"] .stSelectbox label,
-  [data-testid="stSidebar"] .stCheckbox label { color: #000 !important; }
-  /* center all table cells */
-  .stTable td, .stTable th { text-align: center !important; }
+  [data-testid="stSidebar"] .stCheckbox label {
+    color: #000 !important;
+  }
+
+  /* Force all markdown text to black */
+  [data-testid="stMarkdownContainer"] * {
+    color: #000 !important;
+  }
+
+  /* Center-align and force table text to black */
+  .stTable td, .stTable th {
+    text-align: center !important;
+    color:      #000 !important;
+  }
 </style>
 """, unsafe_allow_html=True)
+
 
 # ─── Cluster colors & definitions ──────────────────────────────────────────────
 group_colors = {
