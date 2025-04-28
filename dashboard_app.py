@@ -185,21 +185,29 @@ if mode == "Group Overviews":
         c5.metric("Sum", f"{row['Sum']:.0f}")
         c6.metric("Share (%)", f"{row['Share (%)']:.1f}%")
       
-    # ─── Per-capita comparison ────────────────────────────────────────────────
-    # total employment & metric sum within the selected group
-    emp_group    = df[df['GroupName']==grp]['Employment'].sum()
-    sum_group_m  = df[df['GroupName']==grp][m].sum(skipna=True)
-    group_pc     = sum_group_m / emp_group if emp_group else np.nan
+      # ─── Per-capita comparison ────────────────────────────────────────────────
+    emp_group     = df[df['GroupName']==grp]['Employment'].sum()
+    sum_group_m   = df[df['GroupName']==grp][m].sum(skipna=True)
+    group_pc      = sum_group_m / emp_group    if emp_group    else np.nan
 
-    # total employment & metric sum nationally
-    emp_national   = df['Employment'].sum()
-    sum_national_m = df[m].sum(skipna=True)
-    national_pc    = sum_national_m / emp_national if emp_national else np.nan
+    emp_national  = df['Employment'].sum()
+    sum_national  = df[m].sum(skipna=True)
+    national_pc   = sum_national / emp_national if emp_national else np.nan
 
-    # show as two metrics
     c7, c8 = st.columns(2)
-    c7.metric("Group per capita",     f"{group_pc:.4f}")
-    c8.metric("National per capita",  f"{national_pc:.4f}")
+    for col, title, value in zip(
+        (c7, c8),
+        ("Group per capita", "National per capita"),
+        (group_pc, national_pc)
+    ):
+        col.markdown(
+            f"<div style='background-color:#FFFFFF; padding:12px; "
+            f"border-radius:8px; text-align:center;'>"
+            f"<h4 style='color:#000;margin:0'>{title}</h4>"
+            f"<p style='color:#000;font-size:20px;margin:4px 0'>{value:.4f}</p>"
+            "</div>",
+            unsafe_allow_html=True
+        )
 
     # Top & bottom metros
     st.markdown("### Top Metros")
