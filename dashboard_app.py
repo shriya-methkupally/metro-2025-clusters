@@ -206,16 +206,16 @@ if mode == "Group Overviews":
       # ─── Per-capita comparison ────────────────────────────────────────────────
     emp_group     = df[df['GroupName']==grp]['Employment'].sum()
     sum_group_m   = df[df['GroupName']==grp][m].sum(skipna=True)
-    group_pc      = sum_group_m / emp_group    if emp_group    else np.nan
+    group_pc      = sum_group_m / emp_group  * 100   if emp_group    else np.nan
 
     emp_national  = df['Employment'].sum()
     sum_national  = df[m].sum(skipna=True)
-    national_pc   = sum_national / emp_national if emp_national else np.nan
+    national_pc   = sum_national / emp_national  *100 if emp_national else np.nan
 
     c7, c8 = st.columns(2)
     for col, title, value in zip(
         (c7, c8),
-        ("Group per capita", "National per capita"),
+        ("Group per 100 emp", "National per 100 emp"),
         (group_pc, national_pc)
     ):
         col.markdown(
