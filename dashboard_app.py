@@ -184,6 +184,22 @@ if mode == "Group Overviews":
         c5, c6 = st.columns(2)
         c5.metric("Sum", f"{row['Sum']:.0f}")
         c6.metric("Share (%)", f"{row['Share (%)']:.1f}%")
+      
+    # ─── Per-capita comparison ────────────────────────────────────────────────
+    # total employment & metric sum within the selected group
+    emp_group    = df[df['GroupName']==grp]['Employment'].sum()
+    sum_group_m  = df[df['GroupName']==grp][m].sum(skipna=True)
+    group_pc     = sum_group_m / emp_group if emp_group else np.nan
+
+    # total employment & metric sum nationally
+    emp_national   = df['Employment'].sum()
+    sum_national_m = df[m].sum(skipna=True)
+    national_pc    = sum_national_m / emp_national if emp_national else np.nan
+
+    # show as two metrics
+    c7, c8 = st.columns(2)
+    c7.metric("Group per capita",     f"{group_pc:.4f}")
+    c8.metric("National per capita",  f"{national_pc:.4f}")
 
     # Top & bottom metros
     st.markdown("### Top Metros")
