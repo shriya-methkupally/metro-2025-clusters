@@ -41,7 +41,7 @@ st.markdown("""
 
 # ─── Cluster colors & definitions ──────────────────────────────────────────────
 group_colors = {
-    'AI Superstars':      '#003a70',
+    'AI Superstars':      '#FF9E1B', #003a70
     'Star AI Hubs':       '#FF9E1B',
     'Emerging AI Centers':'#8BB8E8',
     'Focused AI Scalers': '#F2CD00',
@@ -105,7 +105,7 @@ totals = {
     if m not in per_capita_metrics
 }
 
-# ─── Build summary_df for group-level stats ───────────────────────────────────
+# ─── Build summary_df ─────────────────────────────────────────────────────────
 records = []
 for grp, gdf in df.groupby('GroupName'):
     for m in all_metrics:
@@ -121,10 +121,11 @@ for grp, gdf in df.groupby('GroupName'):
             'Best Metro': gdf.loc[arr.idxmax(), 'CBSA Title'],
             'Worst Metro':gdf.loc[arr.idxmin(), 'CBSA Title']
         }
-        # only non–per-capita adoption metrics get sum/share
-        if m in adoption_metrics and m not in per_capita_metrics:
-            rec['Sum'] = arr.sum()
+        # ← change this block to apply to every non‐per-capita metric
+        if m not in per_capita_metrics:
+            rec['Sum']       = arr.sum()
             rec['Share (%)'] = rec['Sum'] / totals[m] * 100 if totals[m] else np.nan
+
         records.append(rec)
 summary_df = pd.DataFrame(records)
 
@@ -179,11 +180,28 @@ if mode == "Group Overviews":
             unsafe_allow_html=True
         )
 
-    # Sum/Share for non–per-capita adoption
-    if m in adoption_metrics and m not in per_capita_metrics:
+    # ─── Sum & Share for all non–per-capita metrics ─────────────────────────────
+    if m not in per_capita_metrics:
         c5, c6 = st.columns(2)
-        c5.metric("Sum", f"{row['Sum']:.0f}")
-        c6.metric("Share (%)", f"{row['Share (%)']:.1f}%")
+        sum_val   = row['Sum']
+        share_val = row['Share (%)']
+
+        c5.markdown(
+            f"<div style='background-color:#FFFFFF; padding:12px; "
+            f"border-radius:8px; text-align:center;'>"
+            f"<h4 style='color:#000; margin:0'>Sum</h4>"
+            f"<p style='color:#000; font-size:20px; margin:4px 0'>{sum_val:.0f}</p>"
+            "</div>",
+            unsafe_allow_html=True
+        )
+        c6.markdown(
+            f"<div style='background-color:#FFFFFF; padding:12px; "
+            f"border-radius:8px; text-align:center;'>"
+            f"<h4 style='color:#000; margin:0'>Share (%)</h4>"
+            f"<p style='color:#000; font-size:20px; margin:4px 0'>{share_val:.1f}%</p>"
+            "</div>",
+            unsafe_allow_html=True
+        )
       
       # ─── Per-capita comparison ────────────────────────────────────────────────
     emp_group     = df[df['GroupName']==grp]['Employment'].sum()
