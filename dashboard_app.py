@@ -152,9 +152,10 @@ if mode == "Group Overviews":
 
     m = st.sidebar.selectbox("Metric", mets)
 
-    # Header + definition
+    # ─── Header: group name above, metric below ──────────────────────────────
     st.markdown(
-        f"<h1 style='color:{group_colors[grp]};'>{m} — {grp}</h1>"
+        f"<h1 style='color:{group_colors[grp]}; margin-bottom:4px'>{grp}</h1>"
+        f"<h2 style='margin-top:0; margin-bottom:4px'>{m}</h2>"
         f"<p><em>{group_defs[grp]}</em></p>",
         unsafe_allow_html=True
     )
@@ -167,11 +168,11 @@ if mode == "Group Overviews":
 
     cols = st.columns(5)
     stats = [
-        ('Count',  cnt),
-        ('Mean',   row['Mean']),
-        ('Min',    row['Min']),
-        ('Max',    row['Max']),
-        ('Median', global_median)
+        ('Number of metros',  cnt),
+        ('Group mean',   row['Mean']),
+        ('Group min',    row['Min']),
+        ('Group max',    row['Max']),
+        ('Median across all metros', global_median)
     ]
     for box, (lbl, val) in zip(cols, stats):
         box.markdown(
@@ -240,12 +241,27 @@ if mode == "Group Overviews":
     for i,(mt,vl) in enumerate(zip(bot['CBSA Title'],bot[m]),1):
         st.markdown(f"{i}. {mt} — {vl:.2f}")
 
-    # Strength & weakness T/M/B combinations
+    # ─── Strength & Weakness Profile (interactive) ─────────────────────────────
     st.markdown("### Strength & Weakness Profile")
     comb = df[df['GroupName']==grp]['Combination'].value_counts()
     pct  = (comb/comb.sum()*100).round(1)
-    prof = pd.DataFrame({'Count':comb,'Share (%)':pct})
-    st.table(prof)
+    prof_df = pd.DataFrame({'Count':comb,'Share (%)':pct})
+    st.table(prof_df)
+
+    # ─── Clickable detail ─────────────────────────────────────────────────────
+    selected_combo = st.selectbox(
+        "Choose a T/M/B combination to see which metros have it:",
+        prof_df.index.tolist()
+    )
+    metros = (
+        df[(df['GroupName']==grp) & (df['Combination']==selected_combo)]
+        ['CBSA Title']
+        .sort_values()
+        .tolist()
+    )
+    st.markdown(f"**Metros with combination {selected_combo}:**")
+    for metro in metros:
+        st.markdown(f"- {metro}")
 
 # ─── Group Comparison ─────────────────────────────────────────────────────────
 elif mode == "Group Comparison":
