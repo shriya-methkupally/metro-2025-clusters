@@ -159,21 +159,23 @@ if mode == "Group Overviews":
         unsafe_allow_html=True
     )
 
-    # Stats cards: Count, Mean, Min, Max
-    cnt = df[df['GroupName']==grp].shape[0]
-    row = summary_df[
-        (summary_df['Group']==grp)&(summary_df['Metric']==m)
-    ].iloc[0]
-    cols = st.columns(4)
-    for box, (lbl,val) in zip(cols, [
-        ('Count',cnt),
-        ('Mean',row['Mean']),
-        ('Min',row['Min']),
-        ('Max',row['Max'])
-    ]):
+      # ─── Stats cards (Count, Mean, Median [all metros], Min, Max) ────────────
+    g = df[df['GroupName']==grp]
+    cnt           = g.shape[0]
+    row           = summary_df[(summary_df['Group']==grp)&(summary_df['Metric']==m)].iloc[0]
+    global_median = df[m].dropna().median()
+
+    cols = st.columns(5)
+    stats = [
+        ('Count',  cnt),
+        ('Mean',   row['Mean']),
+        ('Min',    row['Min']),
+        ('Max',    row['Max']),
+        ('Median', global_median)
+    ]
+    for box, (lbl, val) in zip(cols, stats):
         box.markdown(
-            f"<div style='background-color:{group_colors[grp]};"
-            f"padding:10px;border-radius:8px;'>"
+            f"<div style='background-color:{group_colors[grp]}; padding:10px; border-radius:8px;'>"
             f"<h4 style='color:white;margin:0'>{lbl}</h4>"
             f"<p style='color:white;font-size:20px;margin:0'>{val:.2f}</p>"
             "</div>",
