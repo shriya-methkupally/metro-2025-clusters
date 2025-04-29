@@ -138,8 +138,8 @@ mode = st.sidebar.radio(
 # ─── Group Overviews ──────────────────────────────────────────────────────────
 if mode == "Group Overviews":
     st.sidebar.header("Overview Filter")
-    pillar = st.sidebar.selectbox("Pillar", ["All","Talent","Innovation","Adoption"])
     grp    = st.sidebar.selectbox("Cluster Group", summary_df['Group'].unique())
+    pillar = st.sidebar.selectbox("Pillar", ["All","Talent","Innovation","Adoption"])
 
     if pillar == "Talent":
         mets = talent_metrics
